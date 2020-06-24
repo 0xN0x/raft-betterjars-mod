@@ -1,5 +1,6 @@
 using System.Reflection;
 using Harmony;
+using Steamworks;
 
 [ModTitle("BetterJars")]
 [ModDescription("Give your glass back when you use honey jars.")]
@@ -7,14 +8,13 @@ using Harmony;
 [ModIconUrl("https://github.com/Nundir/raft-betterjars-mod/raw/master/BetterJars_Icon.png")]
 [ModWallpaperUrl("https://github.com/Nundir/raft-betterjars-mod/raw/master/BetterJars_Banner.png")]
 [ModVersionCheckUrl("https://github.com/Nundir/raft-betterjars-mod/raw/master/version.txt")]
-[ModVersion("1.0.0")]
+[ModVersion("1.0.1")]
 [RaftVersion("10")]
 public class GlassHoneyUse : Mod
 {
     private const string logPrefix = "[<color=#0000ff>BetterJars</color>] ";
     private const string HARMONY_ID = "com.nundir.betterjars";
     private HarmonyInstance harmonyInstance;
-    private PlayerInventory inventory;
 
     public void Start()
     {
@@ -23,12 +23,12 @@ public class GlassHoneyUse : Mod
         harmonyInstance = HarmonyInstance.Create(HARMONY_ID);
         harmonyInstance.PatchAll(Assembly.GetExecutingAssembly());
 
-        RConsole.Log(logPrefix + "BetterJars loaded!");
+        RConsole.Log(logPrefix + " loaded!");
     }
 
     public void OnModUnload()
     {
-        RConsole.Log(logPrefix + "BetterJars unloaded!");
+        RConsole.Log(logPrefix + " unloaded!");
         Destroy(gameObject);
     }
 
@@ -48,28 +48,30 @@ public class GlassHoneyUse : Mod
 
     public void GiveGlass()
     {
-        // make sure player inventory is available
-        if (this.inventory == null) 
-            this.inventory = ComponentManager<PlayerInventory>.Value;
-
-        inventory.AddItem(ItemManager.GetItemByName("Glass").UniqueName, 1);
+        RAPI.GetLocalPlayer().Inventory.AddItem(ItemManager.GetItemByName("Glass").UniqueName, 1);
     }
 }
 
 [HarmonyPatch(typeof(Tank)), HarmonyPatch("ModifyTank")]
 internal class ModifyTankPatch
 {
-    private static void Postfix(Network_Player player, float amount, Item_Base itemType = null)
+    private static void Postfix(Tank __instance, Network_Player player, float amount, Item_Base itemType = null)
     {
-        ComponentManager<GlassHoneyUse>.Value.OnModifyTank(player, amount, itemType);
+        if (__instance.GetComponent(typeof(Network_Player)) == RAPI.GetLocalPlayer())
+        {
+            ComponentManager<GlassHoneyUse>.Value.OnModifyTank(player, amount, itemType);
+        }
     }
 }
 
 [HarmonyPatch(typeof(PlayerStats)), HarmonyPatch("Consume")]
 internal class ConsumePatch
 {
-    private static void Postfix(Item_Base edibleItem)
+    private static void Postfix(PlayerStats __instance, Item_Base edibleItem)
     {
-        ComponentManager<GlassHoneyUse>.Value.OnConsumeItem(edibleItem);
+        if (__instance.GetComponent(typeof(Network_Player)) == RAPI.GetLocalPlayer())
+        {
+            ComponentManager<GlassHoneyUse>.Value.OnConsumeItem(edibleItem);
+        }
     }
 }
